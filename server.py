@@ -1,23 +1,26 @@
 import asyncio
 import torch
 import time
-import cv2
 import numpy as np
+import uvicorn
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 from diffusers import StableDiffusionXLImg2ImgPipeline, AutoencoderTiny
 from torchvision.transforms import functional as TF
-import uvicorn
+
+# --- YOUR CUSTOM ENGINE ---
+import hyper_stable 
+# --------------------------
 
 # --- CONFIG ---
 TARGET_FPS = 30       
 JPEG_QUALITY = 75     
-PREVIEW_SIZE = 384    # Keep it light until your new cooler arrives
+PREVIEW_SIZE = 384    # We let Rust handle the resize to this target
 # --------------
 
 app = FastAPI()
 
-print("Loading SDXL Turbo (Binary Mode)...")
+print("Loading SDXL Turbo (HYPER STABLE ENGINE)...")
 
 # 1. Load SDXL Turbo
 pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
@@ -28,10 +31,10 @@ pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
 pipe.vae = AutoencoderTiny.from_pretrained("madebyollin/taesdxl", torch_dtype=torch.float16)
 pipe.to("cuda")
 
-# SAFETY: Disable compilation until you have the new cooler
+# SAFETY: Keeping compile off until your cooler arrives
 # pipe.unet = torch.compile(pipe.unet, mode="reduce-overhead", fullgraph=True)
 
-print("Ready. Sending RAW BYTES.")
+print("Ready. Engine: RUST.")
 
 last_generated_tensor = torch.zeros((1, 3, 512, 512), device="cuda", dtype=torch.float16)
 
@@ -72,19 +75,15 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             loop_start = time.time()
 
-            # 1. Non-Blocking Receive (JSON Controls)
-            # We check if the user sent a command (like sliding a slider)
             try:
-                # We use a very short timeout to poll for data without blocking
                 data = await asyncio.wait_for(websocket.receive_json(), timeout=0.001)
                 current_state.update(data)
             except asyncio.TimeoutError:
                 pass 
             except Exception:
-                # If receive fails (e.g. client disconnect), break
                 break
 
-            # 2. Transform & Generate
+            # 1. Transform & Generate (GPU)
             input_tensor = apply_gpu_transform(
                 last_generated_tensor, 
                 current_state["zoom"], current_state["rotate"], 
@@ -100,7 +99,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         image=input_tensor, 
                         strength=current_state["strength"], 
                         guidance_scale=0.0, 
-                        num_inference_steps=2, # Keep low for speed testing
+                        num_inference_steps=2,
                         output_type="pt" 
                     )
                 if len(results.images) > 0:
@@ -108,25 +107,32 @@ async def websocket_endpoint(websocket: WebSocket):
             except Exception:
                 pass 
 
-            # 3. BINARY ENCODING (The Speed Fix)
-            # Downscale for preview
-            if last_generated_tensor.shape[-1] != PREVIEW_SIZE:
-                tensor_small = torch.nn.functional.interpolate(last_generated_tensor, size=PREVIEW_SIZE, mode='nearest')
-            else:
-                tensor_small = last_generated_tensor
+            # 2. PREPARE FOR RUST (The Bridge)
+            # Rust needs: uint8, CPU, Shape (Height, Width, 3)
+            # We do the bare minimum here in Python to get the data ready
             
-            # GPU -> CPU
-            arr = (tensor_small.squeeze(0) / 2 + 0.5).clamp(0, 1).cpu().float().numpy()
-            arr = np.transpose(arr, (1, 2, 0)) * 255
-            arr = cv2.cvtColor(arr.astype(np.uint8), cv2.COLOR_RGB2BGR)
+            # A. Normalize to 0-1 and Cast to Byte (Still on GPU)
+            # Note: We keep it 512x512 here and let Rust downscale
+            tensor_u8 = (last_generated_tensor.squeeze(0) / 2 + 0.5).clamp(0, 1).mul(255).byte()
             
-            # Encode to JPEG bytes
-            _, buffer = cv2.imencode('.jpg', arr, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
+            # B. Move to CPU and Permute to HWC (Channels Last)
+            # This is the "Data Transfer" cost, unavoidable.
+            array_np = tensor_u8.permute(1, 2, 0).cpu().numpy()
+
+            # 3. RUST ENGINE EXECUTION
+            # This runs in C++, releases the GIL, and is extremely fast.
+            # process_frame(array, target_w, target_h, quality)
+            jpeg_bytes = hyper_stable.process_frame(
+                array_np, 
+                PREVIEW_SIZE, 
+                PREVIEW_SIZE, 
+                JPEG_QUALITY
+            )
             
-            # SEND BYTES DIRECTLY (No Base64)
-            await websocket.send_bytes(buffer.tobytes())
+            # 4. Send Bytes
+            await websocket.send_bytes(jpeg_bytes)
             
-            # 4. FPS Lock
+            # 5. FPS Lock
             elapsed = time.time() - loop_start
             sleep_time = (1.0 / TARGET_FPS) - elapsed
             if sleep_time > 0: await asyncio.sleep(sleep_time)
