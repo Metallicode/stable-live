@@ -3,218 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDXL VJ // GLOBAL STYLE</title>
+    <title>SDXL // BINARY STREAM</title>
     <style>
-        :root { --bg: #000; --panel: #111; --accent: #ff9900; --text: #eee; --btn: #222; }
-        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* HEADER */
-        header { padding: 8px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; background: #080808; }
-        .status-led { width: 10px; height: 10px; border-radius: 50%; background: #333; display: inline-block; margin-right: 5px; }
-        .status-led.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-
-        /* LAYOUT */
+        :root { --bg: #000; --panel: #111; --accent: #ff9900; --text: #eee; }
+        body { background: var(--bg); color: var(--text); font-family: monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { padding: 10px; background: #080808; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
         .main { display: flex; flex: 1; height: 100%; }
-        .viewport { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
-        img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
-
-        .controls { width: 360px; background: var(--panel); border-left: 1px solid #333; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        
-        /* SECTIONS */
-        .section { background: #181818; padding: 10px; border: 1px solid #333; border-radius: 4px; }
-        .section-header { font-size: 0.8rem; font-weight: bold; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* INPUTS */
-        textarea { width: 100%; background: #080808; border: 1px solid #333; color: var(--accent); padding: 5px; resize: none; height: 45px; font-family: inherit; font-size: 0.8rem; box-sizing: border-box; display: block; }
-        
-        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; margin: 10px 0; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; background: var(--accent); border-radius: 50%; margin-top: -8px; cursor: pointer; border: 2px solid #000; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: #444; }
-
-        /* GRID BUTTONS */
-        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 5px; }
-        .style-btn { background: var(--btn); border: 1px solid #333; color: #aaa; padding: 8px 0; font-size: 0.7rem; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .style-btn:hover { background: #333; color: white; }
-        .style-btn:active { background: var(--accent); color: black; }
-
-        /* LABELS */
-        .val-display { float: right; color: var(--accent); font-size: 0.8rem; }
-        label { font-size: 0.75rem; color: #888; display: block; }
-
+        .viewport { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+        img { width: 100%; height: 100%; object-fit: contain; }
+        .controls { width: 300px; background: var(--panel); padding: 15px; border-left: 1px solid #333; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        input[type=range], textarea { width: 100%; background: #222; border: 1px solid #444; color: #fff; margin-top: 5px; }
+        label { font-size: 0.8rem; color: #888; }
+        .stat { color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
     <div>SDXL // LIVE</div>
-    <div style="font-size: 0.7rem;"><span id="led" class="status-led"></span> <span id="status">CONNECTING</span></div>
+    <div>FPS: <span id="fps_counter" class="stat">0</span></div>
 </header>
 
 <div class="main">
     <div class="viewport">
-        <img id="live-image" src="" />
+        <img id="live-image" />
     </div>
 
     <div class="controls">
+        <label>Prompt A</label>
+        <textarea id="prompt_a">cyberpunk city, neon lights</textarea>
+
+        <label>Mixer <span id="val_mix">0%</span></label>
+        <input type="range" id="mix_ratio" min="0" max="1" step="0.01" value="0">
         
-        <div class="section">
-            <div class="section-header">Dual Prompt Mixer</div>
-            
-            <label>Prompt A (Source)</label>
-            <textarea id="prompt_a">cyberpunk city, neon lights, rain</textarea>
-            
-            <div style="margin: 15px 0; padding: 0 5px;">
-                <input type="range" id="mix_ratio" min="0" max="1" step="0.01" value="0">
-                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#555;">
-                    <span>A (0%)</span>
-                    <span id="val_mix_ratio" style="color:var(--accent)">MIXER</span>
-                    <span>B (100%)</span>
-                </div>
-            </div>
+        <label>Prompt B</label>
+        <textarea id="prompt_b">ancient jungle ruins</textarea>
 
-            <label>Prompt B (Target)</label>
-            <textarea id="prompt_b">ancient jungle ruins, stone, vines</textarea>
-        </div>
+        <hr style="border-color:#333; width:100%;">
 
-        <div class="section">
-            <div class="section-header">Global Style (Effects Both)</div>
-            <div class="btn-grid">
-                <button class="style-btn" onclick="injectStyle('pixel art, 8 bit, glitch')">Pixel</button>
-                <button class="style-btn" onclick="injectStyle('oil painting, heavy strokes')">Oil</button>
-                <button class="style-btn" onclick="injectStyle('sketch, charcoal, pencil')">Sketch</button>
-                <button class="style-btn" onclick="injectStyle('cyberpunk, chrome, laser')">Cyber</button>
-                <button class="style-btn" onclick="injectStyle('horror, flesh, blood')">Horror</button>
-                <button class="style-btn" onclick="injectStyle('abstract, geometric, fractal')">Fractal</button>
-                <button class="style-btn" onclick="injectStyle('3d render, blender, glossy')">3D</button>
-                <button class="style-btn" onclick="injectStyle('anime, studio ghibli, cel shaded')">Anime</button>
-                <button class="style-btn" onclick="injectStyle('photorealistic, 8k, raw photo')">Photo</button>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-header">Generative Parameters</div>
-            <label>Feedback Strength <span id="val_strength" class="val-display">0.50</span></label>
-            <input type="range" id="strength" min="0.1" max="0.95" step="0.01" value="0.5">
-            
-            <label>Seed Walker <span id="val_seed" class="val-display">42</span></label>
-            <input type="range" id="seed_walker" min="0" max="1000" step="1" value="42">
-            
-            <div class="btn-grid" style="margin-top:10px;">
-                <button class="style-btn" onclick="setRes(256)">256p</button>
-                <button class="style-btn" onclick="setRes(384)">384p</button>
-                <button class="style-btn" onclick="setRes(512)">512p</button>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                Geometry FX 
-                <span onclick="resetGeo()" style="float:right; cursor:pointer; color:var(--accent); font-size:0.7rem;">[RESET]</span>
-            </div>
-            
-            <label>Zoom (Tunnel)</label>
-            <input type="range" id="zoom" min="0.9" max="1.1" step="0.001" value="1.0">
-            
-            <label>Rotate (Spin)</label>
-            <input type="range" id="rotate" min="-5" max="5" step="0.1" value="0.0">
-            
-            <label>Pan X (Flow)</label>
-            <input type="range" id="pan_x" min="-20" max="20" step="1" value="0">
-        </div>
-
+        <label>Zoom</label>
+        <input type="range" id="zoom" min="0.9" max="1.1" step="0.001" value="1.0">
+        
+        <label>Rotate</label>
+        <input type="range" id="rotate" min="-5" max="5" step="0.1" value="0.0">
+        
+        <label>Pan X</label>
+        <input type="range" id="pan_x" min="-20" max="20" step="1" value="0">
     </div>
 </div>
 
 <script>
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const SERVER_URL = `${protocol}//${window.location.host}/ws`;
-    let ws;
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
     
-    // STATE
+    // CRITICAL: Tell WebSocket to expect RAW DATA
+    ws.binaryType = "arraybuffer";
+
+    const imgEl = document.getElementById('live-image');
+    const fpsEl = document.getElementById('fps_counter');
+    
+    // UI Logic
     let state = {
         prompt_a: document.getElementById('prompt_a').value,
         prompt_b: document.getElementById('prompt_b').value,
-        mix_ratio: 0.0,
-        strength: 0.5,
-        seed: 42,
-        zoom: 1.0, rotate: 0.0, pan_x: 0, pan_y: 0,
-        resolution: 512
+        mix_ratio: 0.0, strength: 0.5, zoom: 1.0, rotate: 0.0, pan_x: 0, pan_y: 0
     };
 
-    const imgEl = document.getElementById('live-image');
-    const statusEl = document.getElementById('status');
-    const ledEl = document.getElementById('led');
-    const pa = document.getElementById('prompt_a');
-    const pb = document.getElementById('prompt_b');
-
-    function connect() {
-        ws = new WebSocket(SERVER_URL);
-        ws.onopen = () => { statusEl.innerText = "ONLINE"; ledEl.classList.add('on'); sendUpdate(); };
-        ws.onclose = () => { statusEl.innerText = "OFFLINE"; ledEl.classList.remove('on'); setTimeout(connect, 2000); };
-        ws.onmessage = (e) => { imgEl.src = "data:image/jpeg;base64," + e.data; };
-    }
-
-    let pending = false;
     function sendUpdate() {
-        if (!ws || ws.readyState !== 1 || pending) return;
-        pending = true;
-        ws.send(JSON.stringify(state));
-        setTimeout(() => { pending = false; }, 15);
+        if(ws.readyState === 1) ws.send(JSON.stringify(state));
     }
 
-    // BINDINGS
-    function bind(id, key, type='float') {
-        const el = document.getElementById(id);
-        const disp = document.getElementById('val_' + id);
-        el.addEventListener('input', (e) => {
-            state[key] = type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value);
-            if(disp) disp.innerText = type === 'float' ? state[key].toFixed(2) : state[key];
-            if(id === 'mix_ratio') disp.innerText = Math.round(state[key] * 100) + "%";
+    // FPS Counter Logic
+    let frames = 0;
+    setInterval(() => { fpsEl.innerText = frames; frames = 0; }, 1000);
+
+    // --- THE BINARY HANDLER ---
+    ws.onmessage = (event) => {
+        // If it's a Buffer (Image data)
+        if (event.data instanceof ArrayBuffer) {
+            // Create a Blob from the bytes
+            const blob = new Blob([event.data], {type: "image/jpeg"});
+            
+            // Create a temporary URL for this blob
+            const url = URL.createObjectURL(blob);
+            
+            // Clean up the memory of the PREVIOUS frame
+            if (imgEl.src) URL.revokeObjectURL(imgEl.src);
+            
+            // Update the Image
+            imgEl.src = url;
+            
+            frames++;
+        }
+    };
+
+    // Bind Controls
+    ['prompt_a', 'prompt_b'].forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            state[id] = e.target.value; sendUpdate();
+        });
+    });
+
+    ['mix_ratio', 'zoom', 'rotate', 'pan_x'].forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            state[id] = parseFloat(e.target.value);
+            if(id === 'mix_ratio') document.getElementById('val_mix').innerText = Math.round(state[id]*100) + '%';
             sendUpdate();
         });
-    }
+    });
 
-    bind('strength', 'strength');
-    bind('mix_ratio', 'mix_ratio');
-    bind('seed_walker', 'seed', 'int');
-    bind('zoom', 'zoom');
-    bind('rotate', 'rotate');
-    bind('pan_x', 'pan_x', 'int');
-    
-    pa.addEventListener('input', () => { state.prompt_a = pa.value; sendUpdate(); });
-    pb.addEventListener('input', () => { state.prompt_b = pb.value; sendUpdate(); });
-
-    // --- NEW LOGIC: APPLY STYLE TO BOTH ---
-    window.injectStyle = (styleStr) => {
-        // 1. Get the "Core Subject" of Prompt A (First comma separated value)
-        const subA = state.prompt_a.split(',')[0];
-        
-        // 2. Get the "Core Subject" of Prompt B
-        const subB = state.prompt_b.split(',')[0];
-        
-        // 3. Create new prompts with the style appended
-        const newA = `${subA}, ${styleStr}`;
-        const newB = `${subB}, ${styleStr}`;
-
-        // 4. Update State & UI
-        state.prompt_a = newA;
-        state.prompt_b = newB;
-        pa.value = newA;
-        pb.value = newB;
-        
-        sendUpdate();
-    };
-
-    window.setRes = (res) => { state.resolution = res; sendUpdate(); };
-
-    window.resetGeo = () => {
-        document.getElementById('zoom').value = 1.0; state.zoom = 1.0;
-        document.getElementById('rotate').value = 0.0; state.rotate = 0.0;
-        document.getElementById('pan_x').value = 0; state.pan_x = 0;
-        sendUpdate();
-    }
-
-    connect();
 </script>
 </body>
 </html>
