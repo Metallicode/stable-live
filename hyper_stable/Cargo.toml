@@ -1,0 +1,22 @@
+[package]
+name = "hyper_stable"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "hyper_stable"
+crate-type = ["cdylib"]
+
+[dependencies]
+# The bridge to Python
+pyo3 = { version = "0.20.0", features = ["extension-module"] }
+
+# To understand Python's "numpy" arrays (your images)
+numpy = "0.20.0"
+
+# High-performance image processing (Pure Rust)
+image = "0.24.7"
+
+# To handle io streams for JPEG encoding
+bytes = "1.5"
